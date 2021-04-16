@@ -19,5 +19,4 @@ def render(template_name, **kwargs):
     return template.render(**kwargs)
 
 
-if __name__ == '__main__':
-    pass
+

@@ -1,4 +1,5 @@
-def not_found_404_view():
+def not_found_404_view(request):
+    print(request)
     return '404 Not Found', [b'404 PAGE Not Found']
 
 
@@ -31,6 +32,6 @@ class WebFramework:
         for front in self.fronts:
             front(request)
         status, body = view(request)
-        response_headers = [('Content-type', 'text/plain')]
+        response_headers = [('Content-Type', 'text/html')]
         start_response(status, response_headers)
         return body
