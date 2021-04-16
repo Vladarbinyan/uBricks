@@ -1,4 +1,3 @@
-from wsgiref.util import setup_testing_defaults
 from wsgiref.simple_server import make_server
 from uBricks.framework import WebFramework
 from demo_routes import routes
