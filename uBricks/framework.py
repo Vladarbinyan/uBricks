@@ -1,6 +1,26 @@
-def not_found_404_view(request):
-    print(request)
-    return '404 Not Found', [b'404 PAGE Not Found']
+import cgi
+
+
+def not_found_404(request):
+    """If page not found"""
+    return '404 Not Found', [b'Error 404: PAGE Not Found']
+
+
+def invalid_request(request):
+    """If http method not supported."""
+    return [b'Error 405: Method Not Allowed']
+
+
+def parse_input_data(data):
+    result = {}
+    if data:
+        # делим параметры через &
+        params = data.split('&')
+        for item in params:
+            # делим ключ и значение через =
+            k, v = item.split('=')
+            result[k] = v
+    return result
 
 
 class WebFramework:
@@ -22,13 +42,29 @@ class WebFramework:
     """
 
     def __call__(self, environ, start_response):
-        path = environ['PATH_INFO']
-        if path in self.routes:
-            view = self.routes[path]
+
+        path = environ['PATH_INFO'] if environ['PATH_INFO'].endswith('/') else environ['PATH_INFO'] + '/'
+        method = environ['REQUEST_METHOD']
+        if method in ('GET', 'POST'):
+            print(path)
+            if path in self.routes:
+                view = self.routes[path]
+                print('method', method)
+                parsed = cgi.parse(environ)
+                print(parsed)
+                # получаем параметры запроса
+                query_string = environ['QUERY_STRING']
+                print(query_string)
+                # превращаем параметры в словарь
+                request_params = parse_input_data(query_string)
+                print(request_params)
+            else:
+                view = not_found_404
         else:
-            view = not_found_404_view
+            view = invalid_request
+
+        # front controllers
         request = {}
-        # front controller
         for front in self.fronts:
             front(request)
         status, body = view(request)
