@@ -23,6 +23,10 @@ class WebFramework:
 
     def __call__(self, environ, start_response):
         path = environ['PATH_INFO']
+
+        if not path.endswith('/'):
+            path += '/'
+
         if path in self.routes:
             view = self.routes[path]
         else:
