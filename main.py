@@ -1,10 +1,12 @@
 from wsgiref.simple_server import make_server
+from datetime import date
 from uBricks.framework import WebFramework
-from demo_routes import routes
+from routes import routes
 
 
+# front controller
 def secret_front(request):
-    request['secret'] = 'some secret'
+    request['data'] = date.today()
 
 
 def other_front(request):

@@ -17,6 +17,3 @@ def render(template_name, **kwargs):
         template = Template(f.read())
     # рендерим шаблон с параметрами
     return template.render(**kwargs)
-
-
-
