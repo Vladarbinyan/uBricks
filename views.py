@@ -1,25 +1,38 @@
+from datetime import date
 from uBricks.templator import render
 from patterns.creational_patterns import Engine, Logger
+from patterns.structural_patterns import AppRoute, Debug
 
 site = Engine()
 logger = Logger('main')
 
+"""
+Перенесли определение маршрутов в представления, будем использовать декоратор AppRoute, обернув в него все имеющиеся 
+представления. Декоратор сработеат при импорте модуля views, и произойдет заполнение словаря с маршрутами (routes)
+"""
+routes = {}
+
 
 # page controller
-
+@AppRoute(routes=routes, url='/')
 class Index:
+    @Debug(name='Index')
     def __call__(self, request):
         content = render('index.html', data=request.get('data', None))
         return '200 OK', content
 
 
+@AppRoute(routes=routes, url='/contact/')
 class Contact:
+    @Debug(name='Contact')
     def __call__(self, request):
         content = render('contact.html')
         return '200 OK', content
 
 
+@AppRoute(routes=routes, url='/about/')
 class About:
+    @Debug(name='About')
     def __call__(self, request):
         content = render('about.html')
         return '200 OK', content
@@ -33,25 +46,30 @@ class NotFound404:
 
 
 # контроллер - Расписания
+@AppRoute(routes=routes, url='/study-programs/')
 class StudyPrograms:
+    @Debug(name='StudyPrograms')
     def __call__(self, request):
-        return '200 OK', render('study-programs.html', data=date.today())
+        return '200 OK', render('study-programs.html', date=date.today())
 
 
 # контроллер - список категорий
+@AppRoute(routes=routes, url='/categories/')
 class CategoryList:
+    @Debug(name='CategoryList')
     def __call__(self, request):
         logger.log('Список категорий')
         return '200 OK', render('categories.html', objects_list=site.categories)
 
 
 # контроллер - создать категорию
+@AppRoute(routes=routes, url='/create-category/')
 class CreateCategory:
+    @Debug(name='CreateCategory')
     def __call__(self, request):
 
         if request['method'] == 'POST':
             # метод пост
-            print(request)
             data = request['data']
 
             name = data['name']
@@ -74,7 +92,9 @@ class CreateCategory:
 
 
 # контроллер - список курсов
+@AppRoute(routes=routes, url='/courses/')
 class CoursesList:
+    @Debug(name='CoursesList')
     def __call__(self, request):
         logger.log('Список курсов')
         try:
@@ -86,9 +106,11 @@ class CoursesList:
 
 
 # контроллер - создать курс
+@AppRoute(routes=routes, url='/create-course/')
 class CreateCourse:
     category_id = -1
 
+    @Debug(name='CreateCourse')
     def __call__(self, request):
         if request['method'] == 'POST':
             # метод пост
@@ -118,7 +140,9 @@ class CreateCourse:
 
 
 # контроллер - копировать курс
+@AppRoute(routes=routes, url='/copy-course/')
 class CopyCourse:
+    @Debug(name='CopyCourse')
     def __call__(self, request):
         request_params = request['request_params']
 

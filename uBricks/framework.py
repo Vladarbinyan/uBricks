@@ -48,7 +48,7 @@ class WebFramework:
                     request['data'] = request_params
                 elif method == 'GET':
                     request['request_params'] = request_params
-                print(f'{method}: {request_params}')
+                # print(f'{method}: {request_params}')
             else:
                 view = NotFound404()
         else:
@@ -60,3 +60,27 @@ class WebFramework:
         response_headers = [('Content-Type', 'text/html')]
         start_response(status, response_headers)
         return [body.encode('utf-8')]
+
+
+# Режим отладки приложения, дублировать в консоль всё что находится в окружении запроса
+class DebugApplication(WebFramework):
+
+    def __init__(self, routes, fronts):
+        self.application = WebFramework(routes, fronts)
+        super().__init__(routes, fronts)
+
+    def __call__(self, env, start_response):
+        print('DEBUG MODE')
+        print(env)
+        return self.application(env, start_response)
+
+
+class FakeApplication(WebFramework):
+
+    def __init__(self, routes, fronts):
+        self.application = WebFramework(routes, fronts)
+        super().__init__(routes, fronts)
+
+    def __call__(self, env, start_response):
+        start_response('200 OK', [('Content-Type', 'text/html')])
+        return [b'Hello from Fake']
