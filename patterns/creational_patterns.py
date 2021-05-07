@@ -1,10 +1,22 @@
 import quopri
 import copy
+from patterns.behavioral_patterns import ConsoleWriter
 
 
 # абстрактный пользователь
 class User:
-    pass
+    _auto_id = 0
+
+    def __init__(self, name):
+        self.id = User._auto_id
+        User._auto_id += 1
+        self.name = name
+
+    def __str__(self):
+        return f'{self.id}: {self.name}'
+
+    def __repr__(self):
+        return self.__str__()
 
 
 # преподаватель
@@ -26,8 +38,8 @@ class UserFactory:
 
     # порождающий паттерн Фабричный метод
     @classmethod
-    def create(cls, type_):
-        return cls.types[type_]()
+    def create(cls, type_, name):
+        return cls.types[type_](name)
 
 
 # порождающий паттерн Прототип - Курс
@@ -39,11 +51,18 @@ class CoursePrototype:
 
 
 class Course(CoursePrototype):
+    _students = []
 
     def __init__(self, name, category):
         self.name = name
         self.category = category
         self.category.courses.append(self)
+
+    def add_student(self, student: Student):
+        self._students.append(student)
+
+    def get_students(self):
+        return self._students
 
 
 # Интерактивный курс
@@ -95,11 +114,9 @@ class Engine:
         self.courses = []
         self.categories = []
 
-
     @staticmethod
-    def create_user(type_):
-        return UserFactory.create(type_)
-
+    def create_user(type_, name):
+        return UserFactory.create(type_, name)
 
     @staticmethod
     def create_category(name, category=None):
@@ -107,7 +124,6 @@ class Engine:
 
     def find_category_by_id(self, id):
         for item in self.categories:
-            print('item', item.id)
             if item.id == id:
                 return item
         raise Exception(f'Нет категории с id = {id}')
@@ -116,11 +132,16 @@ class Engine:
     def create_course(type_, name, category):
         return CourseFactory.create(type_, name, category)
 
-    def get_course(self, name):
+    def get_course(self, name) -> Course:
         for item in self.courses:
             if item.name == name:
                 return item
         return None
+
+    def get_student(self, name) -> Student:
+        for item in self.students:
+            if item.name == name:
+                return item
 
     @staticmethod
     def decode_value(val):
@@ -149,11 +170,13 @@ class SingletonByName(type):
             return cls.__instance[name]
 
 
+# Заметка, можно применить стратегию если добавить стратегию логирования
 class Logger(metaclass=SingletonByName):
 
-    def __init__(self, name):
+    def __init__(self, name, writer=ConsoleWriter()):
         self.name = name
+        self.writer = writer
 
-    @staticmethod
-    def log(text):
-        print('log--->', text)
+    def log(self, text):
+        text = f'log---> {text}'
+        self.writer.write(text)
