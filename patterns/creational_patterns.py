@@ -1,7 +1,7 @@
 import quopri
 import copy
 from patterns.behavioral_patterns import ConsoleWriter
-
+from patterns.architectural_system_pattern_unit_of_work import DomainObject
 
 # абстрактный пользователь
 class User:
@@ -25,8 +25,10 @@ class Teacher(User):
 
 
 # студент
-class Student(User):
-    pass
+class Student(User, DomainObject):
+    def __init__(self, name):
+        super().__init__(name)
+        self.courses = []
 
 
 # порождающий паттерн Абстрактная фабрика - фабрика пользователей
