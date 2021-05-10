@@ -12,6 +12,9 @@ email_notifier = EmailNotifier()
 sms_notifier = SmsNotifier()
 UnitOfWork.new_current()
 UnitOfWork.get_current().set_mapper_registry(MapperRegistry)
+student_mapper = MapperRegistry.get_current_mapper('student')
+course_mapper = MapperRegistry.get_current_mapper('course')
+category_mapper = MapperRegistry.get_current_mapper('category')
 
 """
 Перенесли определение маршрутов в представления, будем использовать декоратор AppRoute, обернув в него все имеющиеся 
@@ -62,43 +65,37 @@ class StudyPrograms:
 
 # контроллер - список категорий
 @AppRoute(routes=routes, url='/categories/')
-class CategoryList:
-    @Debug(name='CategoryList')
-    def __call__(self, request):
-        logger.log('Список категорий')
-        return '200 OK', render('categories.html', objects_list=site.categories)
+class CategoryListView(ListView):
+    template_name = 'categories.html'
+
+    def get_queryset(self):
+        return category_mapper.all()
 
 
 # контроллер - создать категорию
 @AppRoute(routes=routes, url='/create-category/')
-class CreateCategory:
-    @Debug(name='CreateCategory')
-    def __call__(self, request):
+class CategoryCreateView(CreateView):
+    template_name = 'create-category.html'
 
-        if request['method'] == 'POST':
-            # метод пост
-            data = request['data']
-
-            name = data['name']
-            name = site.decode_value(name)
-
-            category_id = data.get('category_id')
-
-            category = None
-            if category_id:
-                category = site.find_category_by_id(int(category_id))
-
-            new_category = site.create_category(name, category)
-
-            site.categories.append(new_category)
-
-            return '200 OK', render('index.html', objects_list=site.categories)
-        else:
-            categories = site.categories
-            return '200 OK', render('create-category.html', categories=categories)
+    def create_obj(self, data: dict):
+        name = data['name']
+        name = site.decode_value(name)
+        new_obj = site.create_category(name)
+        new_obj.mark_new()
+        UnitOfWork.get_current().commit()
 
 
 # контроллер - список курсов
+@AppRoute(routes=routes, url='/courses_new/')
+class CourseListView(ListView):
+    template_name = 'courses.html'
+
+    @Debug(name='CourseListView')
+    def get_queryset(self):
+        logger.log('Список курсов')
+        return course_mapper.all()
+
+
 @AppRoute(routes=routes, url='/courses/')
 class CoursesList:
     @Debug(name='CoursesList')
@@ -169,8 +166,10 @@ class CopyCourse:
 
 @AppRoute(routes=routes, url='/students/')
 class StudentListView(ListView):
-    queryset = site.students
     template_name = 'students.html'
+
+    def get_queryset(self):
+        return student_mapper.all()
 
 
 @AppRoute(routes=routes, url='/create-student/')
@@ -181,7 +180,8 @@ class StudentCreateView(CreateView):
         name = data['name']
         name = site.decode_value(name)
         new_obj = site.create_user('student', name)
-        site.students.append(new_obj)
+        new_obj.mark_new()
+        UnitOfWork.get_current().commit()
 
 
 @AppRoute(routes=routes, url='/add-student/')
@@ -191,17 +191,17 @@ class AddStudentByCourseCreateView(CreateView):
     def get_context_data(self):
         context = super().get_context_data()
         context['courses'] = site.courses
-        context['students'] = site.students
+        context['students'] = student_mapper.all()
         return context
 
     def create_obj(self, data: dict):
         course_name = data['course_name']
         course_name = site.decode_value(course_name)
         course = site.get_course(course_name)
-        student_name = data['student_name']
-        student_name = site.decode_value(student_name)
-        student = site.get_student(student_name)
-        course.add_student(student)
+        student_uuid = data['student_uuid']
+        student_uuid = site.decode_value(student_uuid)
+        student = student_mapper.find_by_id(student_uuid)
+        student.add_student(course)
 
 
 @AppRoute(routes=routes, url='/api/')

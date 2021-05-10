@@ -1,19 +1,20 @@
 import quopri
 import copy
+import sqlite3
 from patterns.behavioral_patterns import ConsoleWriter
 from patterns.architectural_system_pattern_unit_of_work import DomainObject
 
+
 # абстрактный пользователь
 class User:
-    _auto_id = 0
+    uuid = 0
 
-    def __init__(self, name):
-        self.id = User._auto_id
-        User._auto_id += 1
+    def __init__(self, uuid, name):
         self.name = name
+        self.uuid = uuid
 
     def __str__(self):
-        return f'{self.id}: {self.name}'
+        return f'{self.uuid}: {self.name}'
 
     def __repr__(self):
         return self.__str__()
@@ -26,9 +27,15 @@ class Teacher(User):
 
 # студент
 class Student(User, DomainObject):
-    def __init__(self, name):
-        super().__init__(name)
-        self.courses = []
+    def __init__(self, uuid, name):
+        super().__init__(uuid, name)
+        self._courses = []
+
+    def add_student(self, course):
+        self._courses.append(course)
+
+    def get_courses(self):
+        return self._courses
 
 
 # порождающий паттерн Абстрактная фабрика - фабрика пользователей
@@ -41,7 +48,7 @@ class UserFactory:
     # порождающий паттерн Фабричный метод
     @classmethod
     def create(cls, type_, name):
-        return cls.types[type_](name)
+        return cls.types[type_](uuid=0, name=name)
 
 
 # порождающий паттерн Прототип - Курс
@@ -60,11 +67,9 @@ class Course(CoursePrototype):
         self.category = category
         self.category.courses.append(self)
 
-    def add_student(self, student: Student):
-        self._students.append(student)
-
     def get_students(self):
-        return self._students
+        # TODO тут написать код получения списка студентов курса
+        pass
 
 
 # Интерактивный курс
@@ -90,22 +95,17 @@ class CourseFactory:
 
 
 # Категория
-class Category:
-    # реестр?
-    auto_id = 0
+class Category(DomainObject):
+    uuid = 0
 
-    def __init__(self, name, category):
-        self.id = Category.auto_id
-        Category.auto_id += 1
+    def __init__(self, uuid, name):
+        self.uuid = uuid
         self.name = name
-        self.category = category
         self.courses = []
 
     def course_count(self):
-        result = len(self.courses)
-        if self.category:
-            result += self.category.course_count()
-        return result
+        # TODO реализовать счетчик курсов запросом из БД
+        pass
 
 
 # Основной интерфейс проекта
@@ -121,8 +121,8 @@ class Engine:
         return UserFactory.create(type_, name)
 
     @staticmethod
-    def create_category(name, category=None):
-        return Category(name, category)
+    def create_category(name):
+        return Category(name)
 
     def find_category_by_id(self, id):
         for item in self.categories:
@@ -153,6 +153,44 @@ class Engine:
 
 
 # порождающий паттерн Синглтон
+class Singleton(type):
+    def __init__(cls, name, bases, attrs, **kwargs):
+        super().__init__(name, bases, attrs)
+        cls.__instance = None
+
+    def __call__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            cls.__instance = super().__call__(*args, **kwargs)
+        return cls.__instance
+
+
+class Database(metaclass=Singleton):
+    connection = None
+    cursor_obj = None
+
+    def connect(self):
+        if self.connection is None:
+            self.connection = sqlite3.connect("db.sqlite3")
+            self.cursor_obj = self.connection.cursor()
+            self.db_init()
+        return self.cursor_obj
+
+    def db_init(self):
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS STUDENTS
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, [name] text)''')
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS CATEGORIES
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, [name] text)''')
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS COURSES
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            [name] text, 
+            [category] text, 
+            FOREIGN KEY (category) references categories(name))''')
+        self.connection.commit()
+
+
 class SingletonByName(type):
 
     def __init__(cls, name, bases, attrs, **kwargs):
