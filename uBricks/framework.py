@@ -1,17 +1,18 @@
-from requests import get_request_params
+from .requests import get_request_params
+
 
 class NotFound404:
     """If page not found"""
 
     def __call__(self, request):
-        return '404 Not Found', [b'Error 404: PAGE Not Found']
+        return '404 Not Found', f'Error 404: PAGE Not Found'
 
 
 class InvalidRequestMethod:
     """If http method not supported."""
 
     def __call__(self, request):
-        return '405 Method Not Allowed', [b'Error 405: Method Not Allowed']
+        return '405 Method Not Allowed', f'Error 405: Method Not Allowed'
 
 
 class WebFramework:
@@ -34,23 +35,28 @@ class WebFramework:
 
     def __call__(self, environ, start_response):
 
+        request = {}
         path = environ['PATH_INFO'] if environ['PATH_INFO'].endswith('/') else environ['PATH_INFO'] + '/'
         method = environ['REQUEST_METHOD']
         if method in ('GET', 'POST'):
             if path in self.routes:
                 view = self.routes[path]
                 request_params = get_request_params(environ, method)
+                # собираем request
+                request['method'] = method
+                if method == 'POST':
+                    request['data'] = request_params
+                elif method == 'GET':
+                    request['request_params'] = request_params
                 print(f'{method}: {request_params}')
             else:
                 view = NotFound404()
         else:
             view = InvalidRequestMethod()
 
-        # front controllers
-        request = {}
         for front in self.fronts:
             front(request)
         status, body = view(request)
         response_headers = [('Content-Type', 'text/html')]
         start_response(status, response_headers)
-        return body
+        return [body.encode('utf-8')]
