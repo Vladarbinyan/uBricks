@@ -62,12 +62,16 @@ class CategoryMapper:
         self.table_name = 'categories'
 
     def all(self):
-        statement = f'SELECT * from {self.table_name}'
+        statement = """
+                    SELECT t1.UUID, t1.name, count(t2.category_id) as course_count from categories as t1
+                    left join courses as t2 on t2.category_id = t1.UUID group by t1.UUID
+                    """
         self.cursor.execute(statement)
         result = []
         for item in self.cursor.fetchall():
-            uuid, name = item
+            uuid, name, course_count = item
             category = Category(uuid, name)
+            category.course_count = course_count
             result.append(category)
         return result
 
@@ -90,7 +94,7 @@ class CategoryMapper:
 
     def update(self, obj):
         statement = f"UPDATE {self.table_name} SET name=? WHERE uuid=?"
-        self.cursor.execute(statement, (obj.name, obj.uuid, ))
+        self.cursor.execute(statement, (obj.name, obj.uuid,))
         try:
             self.connection.commit()
         except Exception as e:
@@ -113,27 +117,42 @@ class CourseMapper:
         self.table_name = 'courses'
 
     def all(self):
-        statement = f'SELECT * from {self.table_name}'
+        statement = """
+        SELECT t1.uuid, t1.name, t1.category_id, t2.name from courses as t1 
+        left join categories as t2 on t1.category_id = t2.uuid
+        """
         self.cursor.execute(statement)
         result = []
         for item in self.cursor.fetchall():
-            uuid, name, category = item
-            course = Course(uuid, name, category)
+            uuid, name, category_id, category_name = item
+            course = Course(name, Category(category_id, category_name))
+            result.append(course)
+        return result
+
+    def all_by_category(self, category):
+        statement = f'SELECT * from {self.table_name} WHERE category_id=?'
+        self.cursor.execute(statement, (category.uuid,))
+        result = []
+        for item in self.cursor.fetchall():
+            uuid, name, category_id = item
+            course = Course(name, category)
             result.append(course)
         return result
 
     def find_by_id(self, uuid):
-        statement = f"SELECT uuid, name, category FROM {self.table_name} WHERE uuid=?"
+        statement = f"SELECT uuid, name, category_id FROM {self.table_name} WHERE uuid=?"
         self.cursor.execute(statement, (uuid,))
         result = self.cursor.fetchone()
         if result:
-            return Student(*result)
+            uuid, name, category_id = result
+            category = CategoryMapper.find_by_id(category_id)
+            return Course(name, category)
         else:
             raise RecordNotFoundException(f'record with id={uuid} not found')
 
     def insert(self, obj):
-        statement = f"INSERT INTO {self.table_name} (name, category) VALUES (?)"
-        self.cursor.execute(statement, (obj.name, obj.category,))
+        statement = f"INSERT INTO {self.table_name} (name, category_id) VALUES (?, ?)"
+        self.cursor.execute(statement, (obj.name, obj.category.uuid,))
         try:
             self.connection.commit()
         except Exception as e:
@@ -141,7 +160,70 @@ class CourseMapper:
 
     def update(self, obj):
         statement = f"UPDATE {self.table_name} SET name=?, category=? WHERE uuid=?"
-        self.cursor.execute(statement, (obj.name, obj.category, obj.uuid))
+        self.cursor.execute(statement, (obj.name, obj.category.uuid, obj.uuid,))
+        try:
+            self.connection.commit()
+        except Exception as e:
+            raise DbUpdateException(e.args)
+
+    def delete(self, obj):
+        statement = f"DELETE FROM {self.table_name} WHERE uuid=?"
+        self.cursor.execute(statement, (obj.uuid,))
+        try:
+            self.connection.commit()
+        except Exception as e:
+            raise DbDeleteException(e.args)
+
+
+class SubscribersMapper:
+
+    def __init__(self, db):
+        self.connection = db.connection
+        self.cursor = db
+        self.table_name = 'subscribers'
+
+    def all(self):
+        statement = f'SELECT * from {self.table_name}'
+        self.cursor.execute(statement)
+        result = []
+        for item in self.cursor.fetchall():
+            student_id, course_id = item
+            student = Student(uuid, name)
+            result.append(student)
+        return result
+
+    def all_by_category(self, category):
+        statement = f'SELECT * from {self.table_name} WHERE category_id=?'
+        self.cursor.execute(statement, (category.uuid,))
+        result = []
+        for item in self.cursor.fetchall():
+            uuid, name, category_id = item
+            course = Course(name, category)
+            result.append(course)
+        return result
+
+    def find_by_id(self, uuid):
+        statement = f"SELECT uuid, name, category_id FROM {self.table_name} WHERE uuid=?"
+        self.cursor.execute(statement, (uuid,))
+        result = self.cursor.fetchone()
+        if result:
+            uuid, name, category_id = result
+            category = CategoryMapper.find_by_id(category_id)
+            return Course(name, category)
+        else:
+            raise RecordNotFoundException(f'record with id={uuid} not found')
+
+    def insert(self, obj):
+        statement = f"INSERT INTO {self.table_name} (name, category_id) VALUES (?, ?)"
+        self.cursor.execute(statement, (obj.name, obj.category.uuid,))
+        try:
+            self.connection.commit()
+        except Exception as e:
+            raise DbCommitException(e.args)
+
+    def update(self, obj):
+        statement = f"UPDATE {self.table_name} SET name=?, category=? WHERE uuid=?"
+        self.cursor.execute(statement, (obj.name, obj.category.uuid, obj.uuid,))
         try:
             self.connection.commit()
         except Exception as e:
@@ -165,6 +247,7 @@ class MapperRegistry:
         'student': StudentMapper,
         'category': CategoryMapper,
         'course': CourseMapper,
+        'subscribers': SubscribersMapper,
     }
 
     @staticmethod

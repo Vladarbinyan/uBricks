@@ -1,7 +1,7 @@
 import quopri
 import copy
 import sqlite3
-from patterns.behavioral_patterns import ConsoleWriter
+from patterns.behavioral_patterns import ConsoleWriter, Subject
 from patterns.architectural_system_pattern_unit_of_work import DomainObject
 
 
@@ -29,13 +29,12 @@ class Teacher(User):
 class Student(User, DomainObject):
     def __init__(self, uuid, name):
         super().__init__(uuid, name)
-        self._courses = []
 
     def add_student(self, course):
-        self._courses.append(course)
+        pass
 
     def get_courses(self):
-        return self._courses
+        pass
 
 
 # порождающий паттерн Абстрактная фабрика - фабрика пользователей
@@ -59,13 +58,16 @@ class CoursePrototype:
         return copy.deepcopy(self)
 
 
-class Course(CoursePrototype):
+class Course(CoursePrototype, DomainObject, Subject):
     _students = []
 
     def __init__(self, name, category):
         self.name = name
         self.category = category
         self.category.courses.append(self)
+
+    def add_student(self, student):
+        self._students.append(student)
 
     def get_students(self):
         # TODO тут написать код получения списка студентов курса
@@ -101,11 +103,11 @@ class Category(DomainObject):
     def __init__(self, uuid, name):
         self.uuid = uuid
         self.name = name
+        self.course_count = 0
         self.courses = []
 
-    def course_count(self):
-        # TODO реализовать счетчик курсов запросом из БД
-        pass
+    def get_course_count(self):
+        return self.course_count
 
 
 # Основной интерфейс проекта
@@ -122,7 +124,7 @@ class Engine:
 
     @staticmethod
     def create_category(name):
-        return Category(name)
+        return Category(uuid=0, name=name)
 
     def find_category_by_id(self, id):
         for item in self.categories:
@@ -139,11 +141,6 @@ class Engine:
             if item.name == name:
                 return item
         return None
-
-    def get_student(self, name) -> Student:
-        for item in self.students:
-            if item.name == name:
-                return item
 
     @staticmethod
     def decode_value(val):
@@ -178,16 +175,25 @@ class Database(metaclass=Singleton):
     def db_init(self):
         self.cursor_obj.execute(
             '''CREATE TABLE IF NOT EXISTS STUDENTS
-            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, [name] text)''')
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            name text)''')
         self.cursor_obj.execute(
             '''CREATE TABLE IF NOT EXISTS CATEGORIES
-            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, [name] text)''')
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            name text UNIQUE)''')
         self.cursor_obj.execute(
             '''CREATE TABLE IF NOT EXISTS COURSES
             (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
-            [name] text, 
-            [category] text, 
-            FOREIGN KEY (category) references categories(name))''')
+            name text, 
+            category_id INTEGER references categories(UUID)
+            on update cascade on delete cascade)''')
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS SUBSCRIBERS
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            student_id INTEGER references students(UUID)
+            on update cascade on delete cascade,
+            course_id INTEGER references courses(UUID)
+            on update cascade on delete cascade)''')
         self.connection.commit()
 
 

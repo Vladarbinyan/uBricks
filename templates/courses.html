@@ -10,7 +10,7 @@
 {% endblock %}
 {% block body %}
     <div>
-        <a href="/create-course/?id={{uuid}}">Создать новый курс</a>
+        <a href="/create-course/?category_uuid={{category_uuid}}">Создать новый курс</a>
         <br>
         <h1>Список курсов для категории "{{name}}"</h1>
         {% for item in objects_list %}

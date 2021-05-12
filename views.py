@@ -15,6 +15,7 @@ UnitOfWork.get_current().set_mapper_registry(MapperRegistry)
 student_mapper = MapperRegistry.get_current_mapper('student')
 course_mapper = MapperRegistry.get_current_mapper('course')
 category_mapper = MapperRegistry.get_current_mapper('category')
+subscribers_mapper = MapperRegistry.get_current_mapper('subscribers')
 
 """
 Перенесли определение маршрутов в представления, будем использовать декоратор AppRoute, обернув в него все имеющиеся 
@@ -68,7 +69,7 @@ class StudyPrograms:
 class CategoryListView(ListView):
     template_name = 'categories.html'
 
-    def get_queryset(self):
+    def get_queryset(self, *request):
         return category_mapper.all()
 
 
@@ -86,61 +87,50 @@ class CategoryCreateView(CreateView):
 
 
 # контроллер - список курсов
-@AppRoute(routes=routes, url='/courses_new/')
+@AppRoute(routes=routes, url='/courses/')
 class CourseListView(ListView):
     template_name = 'courses.html'
 
+    def get_context_data(self, request):
+        print(request)
+        context = super().get_context_data(request)
+        category = category_mapper.find_by_id(int(request['request_params']['category_uuid']))
+        context['name'] = category.name
+        context['category_uuid'] = category.uuid
+        return context
+
     @Debug(name='CourseListView')
-    def get_queryset(self):
+    def get_queryset(self, *request):
         logger.log('Список курсов')
-        return course_mapper.all()
-
-
-@AppRoute(routes=routes, url='/courses/')
-class CoursesList:
-    @Debug(name='CoursesList')
-    def __call__(self, request):
-        logger.log('Список курсов')
-        try:
-            category = site.find_category_by_id(int(request['request_params']['id']))
-            return '200 OK', render('courses.html', objects_list=category.courses, name=category.name,
-                                    id=category.id)
-        except KeyError:
-            return '200 OK', 'No courses have been added yet'
+        request = request[0]
+        category = category_mapper.find_by_id(int(request['request_params']['category_uuid']))
+        return course_mapper.all_by_category(category)
 
 
 # контроллер - создать курс
 @AppRoute(routes=routes, url='/create-course/')
-class CreateCourse:
-    category_id = -1
+class CourseCreateView(CreateView):
+    template_name = 'create-course.html'
 
-    @Debug(name='CreateCourse')
-    def __call__(self, request):
-        if request['method'] == 'POST':
-            # метод пост
-            data = request['data']
+    def get_context_data(self, request):
+        context = super().get_context_data(request)
+        category = category_mapper.find_by_id(int(request['request_params']['category_uuid']))
+        context['name'] = category.name
+        context['category_uuid'] = category.uuid
+        return context
 
-            name = data['name']
-            name = site.decode_value(name)
-
-            category = None
-            if self.category_id != -1:
-                category = site.find_category_by_id(int(self.category_id))
-
-                course = site.create_course('record', name, category)
-                # Добавляем наблюдателей на курс
-                # course.observers.append(email_notifier)
-                # course.observers.append(sms_notifier)
-                site.courses.append(course)
-
-            return '200 OK', render('courses.html', objects_list=category.courses,
-                                    name=category.name, id=category.id)
-
-        else:
-            self.category_id = int(request['request_params']['id'])
-            category = site.find_category_by_id(int(self.category_id))
-
-            return '200 OK', render('create-course.html', name=category.name, id=category.id)
+    def create_obj(self, data: dict):
+        category_uuid = data['category_uuid']
+        category_uuid = site.decode_value(category_uuid)
+        category = category_mapper.find_by_id(category_uuid)
+        name = data['name']
+        name = site.decode_value(name)
+        new_obj = site.create_course('record', name, category)
+        new_obj.mark_new()
+        UnitOfWork.get_current().commit()
+        # Добавляем наблюдателей на курс
+        # course.observers.append(email_notifier)
+        # course.observers.append(sms_notifier)
 
 
 # контроллер - копировать курс
@@ -168,7 +158,9 @@ class CopyCourse:
 class StudentListView(ListView):
     template_name = 'students.html'
 
-    def get_queryset(self):
+    @Debug(name='StudentListView')
+    def get_queryset(self, *request):
+        logger.log('Список студентов')
         return student_mapper.all()
 
 
@@ -188,9 +180,9 @@ class StudentCreateView(CreateView):
 class AddStudentByCourseCreateView(CreateView):
     template_name = 'add-student.html'
 
-    def get_context_data(self):
-        context = super().get_context_data()
-        context['courses'] = site.courses
+    def get_context_data(self, request):
+        context = super().get_context_data(request)
+        context['courses'] = course_mapper.all()
         context['students'] = student_mapper.all()
         return context
 
@@ -201,7 +193,7 @@ class AddStudentByCourseCreateView(CreateView):
         student_uuid = data['student_uuid']
         student_uuid = site.decode_value(student_uuid)
         student = student_mapper.find_by_id(student_uuid)
-        student.add_student(course)
+        course.add_student(student)
 
 
 @AppRoute(routes=routes, url='/api/')

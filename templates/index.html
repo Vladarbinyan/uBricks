@@ -16,9 +16,6 @@
     <li>
         <a href="/categories/">Список категорий</a>
     </li>
-    <li>
-        <a href="/categories_new/">Список категорий listview</a>
-    </li>
 </ul>
 
 
@@ -26,7 +23,7 @@
     <h1>Список существующих категорий</h1>
     {% for item in objects_list %}
     <li>
-        {{item.name}} <span>Количество курсов: {{item.course_count()}}</span>
+        {{item.name}} <span>Количество курсов: {{item.get_course_count()}}</span>
         <a href="/courses/?id={{item.uuid}}">Показать курсы</a>
     </li>
     {% endfor %}
