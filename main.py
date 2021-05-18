@@ -1,7 +1,8 @@
 from wsgiref.simple_server import make_server
 
 from uBricks.framework import WebFramework
-from routes import routes, fronts
+from routes import fronts
+from views import routes
 
 demo_application = WebFramework(routes, fronts)
 
