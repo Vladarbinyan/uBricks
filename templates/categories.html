@@ -9,10 +9,13 @@
 	{% include "inc-menu.html" %}
 {% endblock %}
 {% block body %}
+	<div>
+		<a href="/create-category/">Создать новую категорию</a>
+	</div>
 
     <h1>Список категорий</h1>
-    <ul>
 
+    <ul>
         {% for item in objects_list %}
         <li>
             {{item.name}} <span>Количество курсов: {{item.course_count()}}</span>
