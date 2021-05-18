@@ -24,9 +24,9 @@
             <option value="{{item.name}}">{{item.name}}</option>
             {% endfor %}
         </select>
-        <select size="3" name="student_name">
+        <select size="3" name="student_uuid">
             {% for item in students %}
-            <option value="{{item.name}}">{{item.name}}</option>
+            <option value="{{item.uuid}}">{{item.name}}</option>
             {% endfor %}
         </select>
         <button type="submit">Записать</button>

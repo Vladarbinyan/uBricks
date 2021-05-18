@@ -6,7 +6,7 @@ import jsonpickle
 class TemplateView:
     template_name = 'template.html'
 
-    def get_context_data(self):
+    def get_context_data(self, request):
         return {}
 
     def get_template(self):
@@ -14,10 +14,11 @@ class TemplateView:
 
     def render_template_with_context(self):
         template_name = self.get_template()
-        context = self.get_context_data()
+        context = self.get_context_data(self.request)
         return '200 OK', render(template_name, **context)
 
     def __call__(self, request):
+        self.request = request
         return self.render_template_with_context()
 
 
@@ -26,15 +27,14 @@ class ListView(TemplateView):
     template_name = 'list.html'
     context_object_name = 'objects_list'
 
-    def get_queryset(self):
-        print(self.queryset)
+    def get_queryset(self, *request):
         return self.queryset
 
     def get_context_object_name(self):
         return self.context_object_name
 
-    def get_context_data(self):
-        queryset = self.get_queryset()
+    def get_context_data(self, request):
+        queryset = self.get_queryset(request)
         context_object_name = self.get_context_object_name()
         context = {context_object_name: queryset}
         return context

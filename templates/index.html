@@ -3,35 +3,45 @@
 Главная страница
 {% endblock %}
 {% block style %}
-	{% include "inc-style.html" %}
+{% include "inc-style.html" %}
 {% endblock %}
 {% block menu %}
-	{% include "inc-menu.html" %}
+{% include "inc-menu.html" %}
 {% endblock %}
 {% block body %}
-	<div>
-		<a href="/create-category/">Создать новую категорию</a>
-	</div>
-	<div>
-		<h1>Список существующих категорий</h1>
-        {% for item in objects_list %}
+<ul>
+    <li>
+        <a href="/create-category/">Создать новую категорию</a>
+    </li>
+    <li>
+        <a href="/categories/">Список категорий</a>
+    </li>
+</ul>
+
+
+<div>
+    <h1>Список существующих категорий</h1>
+    {% for item in objects_list %}
+    <li>
+        {{item.name}} <span>Количество курсов: {{item.get_course_count()}}</span>
+        <a href="/courses/?id={{item.uuid}}">Показать курсы</a>
+    </li>
+    {% endfor %}
+    <br>
+    <hr>
+</div>
+<div>
+    <ul>
         <li>
-            {{item.name}} <span>Количество курсов: {{item.course_count()}}</span>
-			<a href="/courses/?id={{item.id}}">Показать курсы</a>
+            <a href="/students/">Список студентов</a>
         </li>
-        {% endfor %}
-		<br>
-		<hr>
-	</div>
-	<div>
-		<li>
-			<a href="/students/">Список студентов</a>
-		</li>
-		<li>
-			<a href="/create-student/">Создать студента</a>
-		</li>
-		<li>
-			<a href="/add-student/">Добавить студента на курс</a>
-		</li>
-	</div>
+        <li>
+            <a href="/create-student/">Создать студента</a>
+        </li>
+        <li>
+            <a href="/add-student/">Добавить студента на курс</a>
+        </li>
+    </ul>
+
+</div>
 {% endblock %}

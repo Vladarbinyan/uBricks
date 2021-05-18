@@ -1,19 +1,20 @@
 import quopri
 import copy
-from patterns.behavioral_patterns import ConsoleWriter
+import sqlite3
+from patterns.behavioral_patterns import ConsoleWriter, Subject
+from patterns.architectural_system_pattern_unit_of_work import DomainObject
 
 
 # абстрактный пользователь
 class User:
-    _auto_id = 0
+    uuid = 0
 
-    def __init__(self, name):
-        self.id = User._auto_id
-        User._auto_id += 1
+    def __init__(self, uuid, name):
         self.name = name
+        self.uuid = uuid
 
     def __str__(self):
-        return f'{self.id}: {self.name}'
+        return f'{self.uuid}: {self.name}'
 
     def __repr__(self):
         return self.__str__()
@@ -25,8 +26,15 @@ class Teacher(User):
 
 
 # студент
-class Student(User):
-    pass
+class Student(User, DomainObject):
+    def __init__(self, uuid, name):
+        super().__init__(uuid, name)
+
+    def add_student(self, course):
+        pass
+
+    def get_courses(self):
+        pass
 
 
 # порождающий паттерн Абстрактная фабрика - фабрика пользователей
@@ -39,7 +47,7 @@ class UserFactory:
     # порождающий паттерн Фабричный метод
     @classmethod
     def create(cls, type_, name):
-        return cls.types[type_](name)
+        return cls.types[type_](uuid=0, name=name)
 
 
 # порождающий паттерн Прототип - Курс
@@ -50,7 +58,7 @@ class CoursePrototype:
         return copy.deepcopy(self)
 
 
-class Course(CoursePrototype):
+class Course(CoursePrototype, DomainObject, Subject):
     _students = []
 
     def __init__(self, name, category):
@@ -58,11 +66,12 @@ class Course(CoursePrototype):
         self.category = category
         self.category.courses.append(self)
 
-    def add_student(self, student: Student):
+    def add_student(self, student):
         self._students.append(student)
 
     def get_students(self):
-        return self._students
+        # TODO тут написать код получения списка студентов курса
+        pass
 
 
 # Интерактивный курс
@@ -88,22 +97,17 @@ class CourseFactory:
 
 
 # Категория
-class Category:
-    # реестр?
-    auto_id = 0
+class Category(DomainObject):
+    uuid = 0
 
-    def __init__(self, name, category):
-        self.id = Category.auto_id
-        Category.auto_id += 1
+    def __init__(self, uuid, name):
+        self.uuid = uuid
         self.name = name
-        self.category = category
+        self.course_count = 0
         self.courses = []
 
-    def course_count(self):
-        result = len(self.courses)
-        if self.category:
-            result += self.category.course_count()
-        return result
+    def get_course_count(self):
+        return self.course_count
 
 
 # Основной интерфейс проекта
@@ -119,8 +123,8 @@ class Engine:
         return UserFactory.create(type_, name)
 
     @staticmethod
-    def create_category(name, category=None):
-        return Category(name, category)
+    def create_category(name):
+        return Category(uuid=0, name=name)
 
     def find_category_by_id(self, id):
         for item in self.categories:
@@ -138,11 +142,6 @@ class Engine:
                 return item
         return None
 
-    def get_student(self, name) -> Student:
-        for item in self.students:
-            if item.name == name:
-                return item
-
     @staticmethod
     def decode_value(val):
         val_b = bytes(val.replace('%', '=').replace("+", " "), 'UTF-8')
@@ -151,6 +150,53 @@ class Engine:
 
 
 # порождающий паттерн Синглтон
+class Singleton(type):
+    def __init__(cls, name, bases, attrs, **kwargs):
+        super().__init__(name, bases, attrs)
+        cls.__instance = None
+
+    def __call__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            cls.__instance = super().__call__(*args, **kwargs)
+        return cls.__instance
+
+
+class Database(metaclass=Singleton):
+    connection = None
+    cursor_obj = None
+
+    def connect(self):
+        if self.connection is None:
+            self.connection = sqlite3.connect("db.sqlite3")
+            self.cursor_obj = self.connection.cursor()
+            self.db_init()
+        return self.cursor_obj
+
+    def db_init(self):
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS STUDENTS
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            name text)''')
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS CATEGORIES
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            name text UNIQUE)''')
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS COURSES
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            name text, 
+            category_id INTEGER references categories(UUID)
+            on update cascade on delete cascade)''')
+        self.cursor_obj.execute(
+            '''CREATE TABLE IF NOT EXISTS SUBSCRIBERS
+            (UUID INTEGER PRIMARY KEY AUTOINCREMENT, 
+            student_id INTEGER references students(UUID)
+            on update cascade on delete cascade,
+            course_id INTEGER references courses(UUID)
+            on update cascade on delete cascade)''')
+        self.connection.commit()
+
+
 class SingletonByName(type):
 
     def __init__(cls, name, bases, attrs, **kwargs):

@@ -18,13 +18,11 @@
     <ul>
         {% for item in objects_list %}
         <li>
-            {{item.name}} <span>Количество курсов: {{item.course_count()}}</span>
+            {{item.name}} <span>Количество курсов: {{item.get_course_count()}}</span>
+            <a href="/courses/?category_uuid={{item.uuid}}">Список курсов</a>
+            <a href="/create-course/?category_uuid={{item.uuid}}">Создать курс</a>
         </li>
         {% endfor %}
     </ul>
 
-	<div>
-		<li><a href="/courses/">Список курсов</a></li>
-		<li><a href="/create-course/">Создать курс</a></li>
-	</div>
 {% endblock %}
